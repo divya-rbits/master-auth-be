@@ -1,0 +1,21 @@
+{
+  "name": "master-auth-be",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/divya-rbits/master-auth-be.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/divya-rbits/master-auth-be/issues"
+  },
+  "homepage": "https://github.com/divya-rbits/master-auth-be#readme"
+}
