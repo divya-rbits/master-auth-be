@@ -143,25 +143,25 @@ Build a secure authentication middleware API that generates and validates JWE to
 
 ---
 
-### Task 3.2: Implement JWT Service (Inner Token)
-- [ ] Create `src/services/jwt.js`
-- [ ] Implement `generateJWT(payload)` - creates signed JWT
-- [ ] Implement `verifyJWT(token)` - verifies signature and returns payload
-- [ ] Configure JWT parameters (algorithm: HS256, expiration)
-- [ ] Add claim validation (exp, iat, jti)
+### Task 3.2: Implement JWT Service (Inner Token) ✅
+- [x] Create `src/services/jwt.js`
+- [x] Implement `generateJWT(payload)` - creates signed JWT
+- [x] Implement `verifyJWT(token)` - verifies signature and returns payload
+- [x] Configure JWT parameters (algorithm: HS256, expiration)
+- [x] Add claim validation (exp, iat, jti)
 
-**Completion Criteria**: JWT generation and verification working
+**Completion Criteria**: JWT generation and verification working ✅ (22/22 tests passing)
 
 ---
 
-### Task 3.3: Implement Key Derivation Service
-- [ ] Create `src/services/kdf.js`
-- [ ] Implement `deriveKey(password, salt, iterations)` using PBKDF2
-- [ ] Set default parameters: 100,000 iterations, 32-byte key, SHA-256
-- [ ] Implement `generateSalt()` - creates random 16-byte salt
-- [ ] Add salt encoding/decoding utilities
+### Task 3.3: Implement Key Derivation Service ✅
+- [x] Create `src/services/kdf.js`
+- [x] Implement `deriveKey(password, salt, iterations)` using PBKDF2
+- [x] Set default parameters: 100,000 iterations, 32-byte key, SHA-256
+- [x] Implement `generateSalt()` - creates random 16-byte salt
+- [x] Add salt encoding/decoding utilities
 
-**Completion Criteria**: CEK derivation from password working
+**Completion Criteria**: CEK derivation from password working ✅ (31/31 tests passing)
 
 ---
 
@@ -177,16 +177,16 @@ Build a secure authentication middleware API that generates and validates JWE to
 
 ---
 
-### Task 3.5: Implement Token Service (Orchestration)
-- [ ] Create `src/services/token.js`
-- [ ] Implement `generateToken(appId, userContext)`:
+### Task 3.5: Implement Token Service (Orchestration) ✅
+- [x] Create `src/services/token.js`
+- [x] Implement `generateToken(appId, userContext)`:
   - Create JWT payload with claims
   - Sign JWT using JWT service
   - Generate salt
   - Derive CEK using master password
   - Encrypt JWT with JWE
   - Return complete JWE token
-- [ ] Implement `validateToken(jweToken)`:
+- [x] Implement `validateToken(jweToken, salt)`:
   - Parse JWE
   - Derive CEK from master password
   - Decrypt JWE to get JWT
@@ -195,7 +195,8 @@ Build a secure authentication middleware API that generates and validates JWE to
   - Check revocation status
   - Return payload if valid
 
-**Completion Criteria**: End-to-end token generation and validation working
+**Completion Criteria**: End-to-end token generation and validation working ✅
+**Test Results**: 39/39 tests passed (27 unit + 12 integration)
 
 ---
 
@@ -606,6 +607,345 @@ The backend will be considered complete when:
 - ✅ Average response time < 150ms for validation
 - ✅ All tests passing (unit + integration)
 - ✅ Ready for frontend integration
+
+---
+
+## Phase 12: Admin Panel Backend
+
+### Overview
+Build admin panel backend APIs to manage multiple applications, each with their own master password. The admin panel will run locally and connect to Supabase cloud.
+
+---
+
+### Task 12.1: Database Migration - Multi-Master Password Support
+- [ ] Create migration to add `master_password_hash` column to `applications` table (TEXT, NOT NULL)
+- [ ] Migrate existing test application to have its own master password hash
+- [ ] Create migration to drop `auth_config` table (no longer needed)
+- [ ] Update database service to query password hash from applications table
+- [ ] Update all references from global password to per-application password
+- [ ] Test password retrieval for specific application
+
+**Completion Criteria**: Each application has its own master password hash
+
+---
+
+### Task 12.2: Update Authentication Flow for Per-Application Passwords
+- [ ] Modify token generation to use application-specific password hash
+- [ ] Update `POST /api/auth/login` to require `application_id` parameter
+- [ ] Retrieve password hash from `applications` table based on `application_id`
+- [ ] Derive CEK using application-specific master password
+- [ ] Test login with different applications using different passwords
+- [ ] Update Swagger documentation
+
+**Completion Criteria**: Login works with per-application master passwords
+
+---
+
+### Task 12.3: Admin Authentication - Setup
+- [ ] Add admin credentials to `.env.example`:
+  ```
+  ADMIN_EMAIL=admin@localhost
+  ADMIN_PASSWORD=admin_password_here
+  ADMIN_JWT_SECRET=admin_jwt_secret_here
+  ADMIN_SESSION_TIMEOUT=1800
+  ```
+- [ ] Create `src/services/adminAuth.js` for admin authentication
+- [ ] Implement simple email/password verification (compare with env vars)
+- [ ] Implement admin JWT token generation (separate from main auth)
+- [ ] Configure admin session timeout (30 minutes)
+
+**Completion Criteria**: Admin auth service ready
+
+---
+
+### Task 12.4: Admin Authentication - Tests & Endpoints
+- [ ] Write unit tests for admin authentication in `tests/services/adminAuth.test.js`
+- [ ] Create `src/controllers/adminAuthController.js`
+- [ ] Implement `POST /api/admin/auth/login`:
+  - Accept email and password
+  - Verify against env variables
+  - Return admin JWT token
+  - Include expiration time
+- [ ] Implement `POST /api/admin/auth/logout`:
+  - Invalidate admin session (optional, JWT stateless)
+  - Log admin logout
+- [ ] Create `src/middleware/adminAuth.js` - verify admin JWT
+- [ ] Add Swagger documentation
+- [ ] Test all endpoints pass
+
+**Completion Criteria**: Admin can login and receive JWT token
+
+---
+
+### Task 12.5: Application Management - List Applications
+- [ ] Write unit tests for listing applications
+- [ ] Create `src/controllers/applicationController.js`
+- [ ] Implement `GET /api/admin/applications`:
+  - Require admin authentication
+  - Query all applications from database
+  - Return id, app_id, app_name, is_active, created_at, updated_at
+  - DO NOT return master_password_hash or app_secret
+  - Add pagination support (limit, offset)
+  - Add sorting support (by name, created_at)
+- [ ] Add rate limiting (100 requests/minute)
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can view all applications
+
+---
+
+### Task 12.6: Application Management - Create Application
+- [ ] Write unit tests for creating applications
+- [ ] Implement `POST /api/admin/applications`:
+  - Require admin authentication
+  - Accept: app_name, master_password (plain text)
+  - Generate unique app_id (UUID or custom format)
+  - Generate random app_secret (hashed)
+  - Hash master_password using Argon2
+  - Insert into applications table
+  - Log application creation event
+  - Return new application details (including plain app_secret once)
+- [ ] Add validation: app_name required, master_password min 12 chars
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can create new applications with master passwords
+
+---
+
+### Task 12.7: Application Management - Update Application
+- [ ] Write unit tests for updating applications
+- [ ] Implement `PUT /api/admin/applications/:id`:
+  - Require admin authentication
+  - Accept: app_name (optional), is_active (optional)
+  - Update application record
+  - Log update event
+  - Return updated application
+- [ ] Add validation for input fields
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can update application details
+
+---
+
+### Task 12.8: Application Management - Delete Application
+- [ ] Write unit tests for deleting applications
+- [ ] Implement `DELETE /api/admin/applications/:id`:
+  - Require admin authentication
+  - Check if application has active tokens
+  - Soft delete (set is_active = false) or hard delete based on preference
+  - Revoke all active tokens for this application
+  - Log deletion event
+  - Return success confirmation
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can delete applications
+
+---
+
+### Task 12.9: Master Password Management - Change Password
+- [ ] Write unit tests for password change
+- [ ] Implement `PUT /api/admin/applications/:id/password`:
+  - Require admin authentication
+  - Accept: current_master_password, new_master_password
+  - Verify current password against stored hash
+  - Validate new password strength (min 12 chars)
+  - Hash new password with Argon2
+  - Update master_password_hash in database
+  - Revoke ALL active tokens for this application
+  - Log password change event
+  - Return success confirmation
+- [ ] Add rate limiting (5 attempts/hour per application)
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can change master password per application
+
+---
+
+### Task 12.10: Token Management - List Active Tokens
+- [ ] Write unit tests for listing tokens
+- [ ] Implement `GET /api/admin/tokens`:
+  - Require admin authentication
+  - Accept query params: application_id (optional), limit, offset
+  - Query revoked_tokens table (tokens NOT in this table are active)
+  - Calculate active tokens by querying audit_logs for login events
+  - Return: jti, application_id, issued_at, expires_at, ip_address
+  - Add pagination support
+  - Add filtering by application
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can view all active tokens
+
+---
+
+### Task 12.11: Token Management - Revoke Token
+- [ ] Write unit tests for token revocation
+- [ ] Implement `POST /api/admin/tokens/revoke`:
+  - Require admin authentication
+  - Accept: jti (token ID), reason (optional)
+  - Add token to revoked_tokens table
+  - Log revocation event with admin info
+  - Return success confirmation
+- [ ] Add validation: jti required
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can revoke specific tokens
+
+---
+
+### Task 12.12: Token Management - Revoke All Application Tokens
+- [ ] Write unit tests for bulk revocation
+- [ ] Implement `POST /api/admin/applications/:id/revoke-all`:
+  - Require admin authentication
+  - Accept: reason (optional)
+  - Query all active tokens for application
+  - Add all tokens to revoked_tokens table
+  - Log bulk revocation event
+  - Return count of revoked tokens
+- [ ] Add confirmation requirement for destructive action
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can revoke all tokens for an application
+
+---
+
+### Task 12.13: Audit Logs - Query Endpoint
+- [ ] Write unit tests for audit log queries
+- [ ] Implement `GET /api/admin/logs`:
+  - Require admin authentication
+  - Accept query params:
+    - event_type (optional): filter by event type
+    - application_id (optional): filter by application
+    - start_date, end_date (optional): date range filter
+    - limit, offset: pagination
+  - Query audit_logs table with filters
+  - Return formatted log entries
+  - Include all relevant fields (event_type, app_id, ip, timestamp, details)
+- [ ] Add sorting support (by created_at DESC by default)
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can query and filter audit logs
+
+---
+
+### Task 12.14: Audit Logs - Export Endpoint
+- [ ] Write unit tests for log export
+- [ ] Implement `GET /api/admin/logs/export`:
+  - Require admin authentication
+  - Accept same filters as query endpoint
+  - Support format parameter: json, csv
+  - Generate downloadable file
+  - Return appropriate Content-Type header
+  - Add rate limiting (10 exports/hour)
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can export audit logs
+
+---
+
+### Task 12.15: Dashboard Statistics - Overview Endpoint
+- [ ] Write unit tests for dashboard stats
+- [ ] Implement `GET /api/admin/dashboard`:
+  - Require admin authentication
+  - Calculate and return:
+    - Total applications count
+    - Active applications count
+    - Total active tokens count
+    - Failed login attempts (last 24 hours)
+    - Successful logins (last 24 hours)
+    - Token validations (last 24 hours)
+    - Recent activity (last 10 events)
+  - Cache results for 5 minutes to reduce DB load
+- [ ] Add Swagger documentation
+- [ ] Test endpoint passes all tests
+
+**Completion Criteria**: Admin can view dashboard statistics
+
+---
+
+### Task 12.16: Dashboard Statistics - Per-Application Analytics
+- [ ] Write unit tests for application analytics
+- [ ] Implement `GET /api/admin/applications/:id/analytics`:
+  - Require admin authentication
+  - Accept date_range parameter (7d, 30d, 90d)
+  - Return application-specific stats:
+    - Login success/failure counts
+    - Active token count
+    - Token validations count
+    - Most recent activity
+    - Peak usage times
+  - Add Swagger documentation
+  - Test endpoint passes all tests
+
+**Completion Criteria**: Admin can view per-application analytics
+
+---
+
+### Task 12.17: Security - Admin Endpoint Rate Limiting
+- [ ] Configure strict rate limiting for admin endpoints:
+  - Login: 5 attempts/15 minutes
+  - Password change: 5 attempts/hour
+  - Token revocation: 50 requests/hour
+  - Log export: 10 requests/hour
+  - Other endpoints: 100 requests/minute
+- [ ] Return 429 status when limit exceeded
+- [ ] Log rate limit violations
+- [ ] Test rate limiting works
+
+**Completion Criteria**: Admin endpoints protected from abuse
+
+---
+
+### Task 12.18: Security - Admin Action Logging
+- [ ] Log all admin actions to audit_logs table
+- [ ] Include admin identifier in log entries
+- [ ] Log successful and failed admin logins
+- [ ] Log all CRUD operations on applications
+- [ ] Log all password changes
+- [ ] Log all token revocations
+- [ ] Include IP address and timestamp
+- [ ] Test logging works for all admin actions
+
+**Completion Criteria**: All admin actions are audited
+
+---
+
+### Task 12.19: Admin API Documentation - Swagger Update
+- [ ] Update Swagger configuration for admin routes
+- [ ] Add security scheme for admin JWT
+- [ ] Document all admin endpoints with:
+  - Request/response schemas
+  - Authentication requirements
+  - Rate limits
+  - Example requests
+  - Error responses
+- [ ] Test Swagger UI displays all admin endpoints correctly
+
+**Completion Criteria**: Complete API documentation for admin panel
+
+---
+
+### Task 12.20: Integration Testing - Admin Panel Backend
+- [ ] Write integration tests for complete admin workflows:
+  - Admin login → Create application → Change password → Revoke tokens
+  - Admin login → View logs → Export logs
+  - Admin login → View dashboard → View app analytics
+- [ ] Test authentication failures
+- [ ] Test authorization (admin-only endpoints)
+- [ ] Test data validation
+- [ ] Test rate limiting
+- [ ] All tests passing
+
+**Completion Criteria**: Admin panel backend fully tested and working
 
 ---
 

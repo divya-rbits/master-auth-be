@@ -7,3 +7,4 @@
 7. Finally, add a review section to the [todo.md](todo.md) file with a summary of the changes you made and any other relevant information.
 8. Always create a new todo.md for a new task with the name of the task accomplished in the name like todo_<name_of_task>.md
 9. When creating APIs use reverse technique : First create unit test cases which would apply to that specific api and then create an API which would pass all those unit tests.
+10. Whenever creating an API always add a swagger to that so that i can test that API without frontend.

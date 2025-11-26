@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -11,7 +13,43 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Health check endpoint
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Master Auth API Docs'
+}));
+
+// Swagger JSON endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check endpoint
+ *     description: Returns the health status of the API server
+ *     tags:
+ *       - System
+ *     responses:
+ *       200:
+ *         description: Server is healthy and running
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: 2025-11-25T10:30:00.000Z
+ */
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
