@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -12,6 +13,9 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+// API Routes
+app.use('/api/auth', authRoutes);
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
