@@ -76,59 +76,8 @@ describe('AuthController', () => {
       });
     });
 
-    describe('Validation Errors', () => {
-      it('should return 400 when password is missing', async () => {
-        // Arrange
-        req.body = {
-          application_id: 'test-app-123'
-        };
-
-        // Act
-        await authController.login(req, res);
-
-        // Assert
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-          success: false,
-          error: expect.stringContaining('password')
-        }));
-      });
-
-      it('should return 400 when application_id is missing', async () => {
-        // Arrange
-        req.body = {
-          password: 'ValidPassword123'
-        };
-
-        // Act
-        await authController.login(req, res);
-
-        // Assert
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-          success: false,
-          error: expect.stringContaining('application_id')
-        }));
-      });
-
-      it('should return 400 when password is empty string', async () => {
-        // Arrange
-        req.body = {
-          password: '',
-          application_id: 'test-app-123'
-        };
-
-        // Act
-        await authController.login(req, res);
-
-        // Assert
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-          success: false,
-          error: expect.any(String)
-        }));
-      });
-    });
+    // Validation Errors are now tested in middleware/validation.test.js
+    // since validation logic moved to middleware
 
     describe('Authentication Errors', () => {
       it('should return 401 when password is incorrect', async () => {
@@ -384,41 +333,7 @@ describe('AuthController', () => {
       });
     });
 
-    describe('Validation Errors', () => {
-      it('should return 400 when token is missing', async () => {
-        // Arrange
-        req.body = {
-          salt: 'mockSaltBase64url'
-        };
-
-        // Act
-        await authController.validate(req, res);
-
-        // Assert
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-          valid: false,
-          error: expect.stringContaining('token')
-        }));
-      });
-
-      it('should return 400 when salt is missing', async () => {
-        // Arrange
-        req.body = {
-          token: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE'
-        };
-
-        // Act
-        await authController.validate(req, res);
-
-        // Assert
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-          valid: false,
-          error: expect.stringContaining('salt')
-        }));
-      });
-    });
+    // Validation Errors are now tested in middleware/validation.test.js
 
     describe('Authentication Errors', () => {
       it('should return 401 when token is invalid', async () => {
@@ -599,41 +514,7 @@ describe('AuthController', () => {
       });
     });
 
-    describe('Validation Errors', () => {
-      it('should return 400 when token is missing', async () => {
-        // Arrange
-        req.body = {
-          salt: 'mockSaltBase64url'
-        };
-
-        // Act
-        await authController.logout(req, res);
-
-        // Assert
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-          success: false,
-          error: expect.stringContaining('token')
-        }));
-      });
-
-      it('should return 400 when salt is missing', async () => {
-        // Arrange
-        req.body = {
-          token: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE'
-        };
-
-        // Act
-        await authController.logout(req, res);
-
-        // Assert
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-          success: false,
-          error: expect.stringContaining('salt')
-        }));
-      });
-    });
+    // Validation Errors are now tested in middleware/validation.test.js
 
     describe('Server Errors', () => {
       it('should return 500 when revocation fails', async () => {
@@ -717,41 +598,7 @@ describe('AuthController', () => {
       });
     });
 
-    describe('Validation Errors', () => {
-      it('should return 400 when token is missing', async () => {
-        // Arrange
-        req.body = {
-          salt: 'mockSaltBase64url'
-        };
-
-        // Act
-        await authController.refresh(req, res);
-
-        // Assert
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-          success: false,
-          error: expect.stringContaining('token')
-        }));
-      });
-
-      it('should return 400 when salt is missing', async () => {
-        // Arrange
-        req.body = {
-          token: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE'
-        };
-
-        // Act
-        await authController.refresh(req, res);
-
-        // Assert
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-          success: false,
-          error: expect.stringContaining('salt')
-        }));
-      });
-    });
+    // Validation Errors are now tested in middleware/validation.test.js
 
     describe('Authentication Errors', () => {
       it('should return 401 when token is invalid', async () => {
@@ -815,6 +662,540 @@ describe('AuthController', () => {
 
         // Act
         await authController.refresh(req, res);
+
+        // Assert
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          success: false,
+          error: expect.any(String)
+        }));
+      });
+    });
+  });
+
+  describe('tokenStatus()', () => {
+    describe('Success Cases', () => {
+      it('should return detailed token status for valid token from body', async () => {
+        // Arrange
+        req.body = {
+          token: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE',
+          salt: 'mockSaltBase64url'
+        };
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const mockPayload = {
+          appId: 'test-app-123',
+          jti: 'mock-jti-123',
+          exp: currentTime + 3600, // Expires in 1 hour
+          iat: currentTime - 600 // Issued 10 minutes ago
+        };
+
+        tokenService.validateToken.mockResolvedValue(mockPayload);
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.tokenStatus(req, res);
+
+        // Assert
+        expect(tokenService.validateToken).toHaveBeenCalledWith(req.body.token, req.body.salt);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          valid: true,
+          status: expect.objectContaining({
+            expiresIn: expect.any(Number),
+            issuedAt: expect.any(String),
+            sessionId: 'mock-jti-123',
+            applicationId: 'test-app-123',
+            revoked: false
+          }),
+          message: 'Token is valid'
+        }));
+
+        // Verify expiresIn is approximately 3600 seconds
+        const response = res.json.mock.calls[0][0];
+        expect(response.status.expiresIn).toBeGreaterThanOrEqual(3598);
+        expect(response.status.expiresIn).toBeLessThanOrEqual(3600);
+      });
+
+      it('should return token status with correct ISO timestamp for issuedAt', async () => {
+        // Arrange
+        req.body = {
+          token: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE',
+          salt: 'mockSaltBase64url'
+        };
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const mockPayload = {
+          appId: 'test-app-123',
+          jti: 'mock-jti-123',
+          exp: currentTime + 3600,
+          iat: currentTime - 600
+        };
+
+        tokenService.validateToken.mockResolvedValue(mockPayload);
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.tokenStatus(req, res);
+
+        // Assert
+        const response = res.json.mock.calls[0][0];
+        expect(response.status.issuedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+
+        // Verify it's a valid ISO string
+        const issuedAtDate = new Date(response.status.issuedAt);
+        expect(issuedAtDate.getTime()).toBe(mockPayload.iat * 1000);
+      });
+
+      it('should handle token from Authorization header (Bearer format)', async () => {
+        // Arrange
+        req.headers.authorization = 'Bearer eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE';
+        req.body = {
+          salt: 'mockSaltBase64url'
+        };
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const mockPayload = {
+          appId: 'test-app-123',
+          jti: 'mock-jti-123',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        tokenService.validateToken.mockResolvedValue(mockPayload);
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.tokenStatus(req, res);
+
+        // Assert
+        expect(tokenService.validateToken).toHaveBeenCalledWith(
+          'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE',
+          'mockSaltBase64url'
+        );
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          valid: true
+        }));
+      });
+
+      it('should log token status check event', async () => {
+        // Arrange
+        req.body = {
+          token: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE',
+          salt: 'mockSaltBase64url'
+        };
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const mockPayload = {
+          appId: 'test-app-123',
+          jti: 'mock-jti-123',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        tokenService.validateToken.mockResolvedValue(mockPayload);
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.tokenStatus(req, res);
+
+        // Assert
+        expect(databaseService.logEvent).toHaveBeenCalledWith(
+          'token_status_check',
+          'test-app-123',
+          '127.0.0.1',
+          'Jest Test Agent',
+          expect.objectContaining({
+            jti: 'mock-jti-123',
+            valid: true
+          })
+        );
+      });
+    });
+
+    // Validation Errors are now tested in middleware/validation.test.js
+
+    describe('Authentication Errors', () => {
+      it('should return 401 for expired token with graceful message', async () => {
+        // Arrange
+        req.body = {
+          token: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE',
+          salt: 'mockSaltBase64url'
+        };
+
+        tokenService.validateToken.mockRejectedValue(new Error('Token expired'));
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.tokenStatus(req, res);
+
+        // Assert
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          valid: false,
+          error: 'Token expired'
+        }));
+      });
+
+      it('should return 401 for revoked token with graceful message', async () => {
+        // Arrange
+        req.body = {
+          token: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWE',
+          salt: 'mockSaltBase64url'
+        };
+
+        tokenService.validateToken.mockRejectedValue(new Error('Token has been revoked'));
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.tokenStatus(req, res);
+
+        // Assert
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          valid: false,
+          error: 'Token has been revoked'
+        }));
+      });
+
+      it('should return 401 for invalid token', async () => {
+        // Arrange
+        req.body = {
+          token: 'invalid-token',
+          salt: 'mockSaltBase64url'
+        };
+
+        tokenService.validateToken.mockRejectedValue(new Error('Invalid token format'));
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.tokenStatus(req, res);
+
+        // Assert
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          valid: false,
+          error: expect.any(String)
+        }));
+      });
+
+      it('should log failed status check for invalid token', async () => {
+        // Arrange
+        req.body = {
+          token: 'invalid-token',
+          salt: 'mockSaltBase64url'
+        };
+
+        tokenService.validateToken.mockRejectedValue(new Error('Invalid token format'));
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.tokenStatus(req, res);
+
+        // Assert
+        expect(databaseService.logEvent).toHaveBeenCalledWith(
+          'token_status_check_failed',
+          'unknown',
+          '127.0.0.1',
+          'Jest Test Agent',
+          expect.objectContaining({
+            reason: 'Invalid token format'
+          })
+        );
+      });
+    });
+  });
+
+  describe('revokeToken()', () => {
+    describe('Success Cases', () => {
+      it('should revoke a token successfully with valid requesting token', async () => {
+        // Arrange
+        req.body = {
+          requestingToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..requestingJWE',
+          requestingSalt: 'requestingSalt123',
+          targetToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..targetJWE',
+          targetSalt: 'targetSalt456',
+          reason: 'User requested revocation'
+        };
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const mockRequestingPayload = {
+          appId: 'test-app-123',
+          jti: 'requesting-jti-123',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        const mockTargetPayload = {
+          appId: 'test-app-456',
+          jti: 'target-jti-456',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        // Mock validation for requesting token (first call)
+        tokenService.validateToken
+          .mockResolvedValueOnce(mockRequestingPayload)
+          .mockResolvedValueOnce(mockTargetPayload);
+
+        databaseService.revokeToken.mockResolvedValue(true);
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.revokeToken(req, res);
+
+        // Assert
+        expect(tokenService.validateToken).toHaveBeenCalledTimes(2);
+        expect(tokenService.validateToken).toHaveBeenNthCalledWith(1, req.body.requestingToken, req.body.requestingSalt);
+        expect(tokenService.validateToken).toHaveBeenNthCalledWith(2, req.body.targetToken, req.body.targetSalt);
+        expect(databaseService.revokeToken).toHaveBeenCalledWith(
+          mockTargetPayload.jti,
+          expect.any(Date),
+          'User requested revocation'
+        );
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          success: true,
+          message: 'Token revoked successfully',
+          revokedTokenId: 'target-jti-456'
+        }));
+      });
+
+      it('should log revocation event with reason and requesting user info', async () => {
+        // Arrange
+        req.body = {
+          requestingToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..requestingJWE',
+          requestingSalt: 'requestingSalt123',
+          targetToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..targetJWE',
+          targetSalt: 'targetSalt456',
+          reason: 'Security breach'
+        };
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const mockRequestingPayload = {
+          appId: 'test-app-123',
+          jti: 'requesting-jti-123',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        const mockTargetPayload = {
+          appId: 'test-app-456',
+          jti: 'target-jti-456',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        tokenService.validateToken
+          .mockResolvedValueOnce(mockRequestingPayload)
+          .mockResolvedValueOnce(mockTargetPayload);
+
+        databaseService.revokeToken.mockResolvedValue(true);
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.revokeToken(req, res);
+
+        // Assert
+        expect(databaseService.logEvent).toHaveBeenCalledWith(
+          'token_revoked',
+          mockTargetPayload.appId,
+          '127.0.0.1',
+          'Jest Test Agent',
+          expect.objectContaining({
+            revokedJti: 'target-jti-456',
+            requestingJti: 'requesting-jti-123',
+            reason: 'Security breach'
+          })
+        );
+      });
+
+      it('should handle already revoked target token gracefully', async () => {
+        // Arrange
+        req.body = {
+          requestingToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..requestingJWE',
+          requestingSalt: 'requestingSalt123',
+          targetToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..targetJWE',
+          targetSalt: 'targetSalt456',
+          reason: 'User request'
+        };
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const mockRequestingPayload = {
+          appId: 'test-app-123',
+          jti: 'requesting-jti-123',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        tokenService.validateToken
+          .mockResolvedValueOnce(mockRequestingPayload)
+          .mockRejectedValueOnce(new Error('Token has been revoked'));
+
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.revokeToken(req, res);
+
+        // Assert
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          success: true,
+          message: expect.stringContaining('already')
+        }));
+      });
+
+      it('should use default reason if not provided', async () => {
+        // Arrange
+        req.body = {
+          requestingToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..requestingJWE',
+          requestingSalt: 'requestingSalt123',
+          targetToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..targetJWE',
+          targetSalt: 'targetSalt456'
+          // No reason provided
+        };
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const mockRequestingPayload = {
+          appId: 'test-app-123',
+          jti: 'requesting-jti-123',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        const mockTargetPayload = {
+          appId: 'test-app-456',
+          jti: 'target-jti-456',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        tokenService.validateToken
+          .mockResolvedValueOnce(mockRequestingPayload)
+          .mockResolvedValueOnce(mockTargetPayload);
+
+        databaseService.revokeToken.mockResolvedValue(true);
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.revokeToken(req, res);
+
+        // Assert
+        expect(databaseService.revokeToken).toHaveBeenCalledWith(
+          mockTargetPayload.jti,
+          expect.any(Date),
+          'Revoked via API'
+        );
+      });
+    });
+
+    // Validation Errors are now tested in middleware/validation.test.js
+
+    describe('Authentication Errors', () => {
+      it('should return 401 when requesting token is invalid', async () => {
+        // Arrange
+        req.body = {
+          requestingToken: 'invalid-token',
+          requestingSalt: 'requestingSalt123',
+          targetToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..targetJWE',
+          targetSalt: 'targetSalt456'
+        };
+
+        tokenService.validateToken.mockRejectedValue(new Error('Invalid token format'));
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.revokeToken(req, res);
+
+        // Assert
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          success: false,
+          error: expect.stringContaining('Unauthorized')
+        }));
+      });
+
+      it('should return 401 when requesting token is expired', async () => {
+        // Arrange
+        req.body = {
+          requestingToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..expiredJWE',
+          requestingSalt: 'requestingSalt123',
+          targetToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..targetJWE',
+          targetSalt: 'targetSalt456'
+        };
+
+        tokenService.validateToken.mockRejectedValue(new Error('Token expired'));
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.revokeToken(req, res);
+
+        // Assert
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          success: false,
+          error: expect.stringContaining('Unauthorized')
+        }));
+      });
+
+      it('should return 401 when requesting token is already revoked', async () => {
+        // Arrange
+        req.body = {
+          requestingToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..revokedJWE',
+          requestingSalt: 'requestingSalt123',
+          targetToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..targetJWE',
+          targetSalt: 'targetSalt456'
+        };
+
+        tokenService.validateToken.mockRejectedValue(new Error('Token has been revoked'));
+        databaseService.logEvent.mockResolvedValue(true);
+
+        // Act
+        await authController.revokeToken(req, res);
+
+        // Assert
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          success: false,
+          error: expect.stringContaining('Unauthorized')
+        }));
+      });
+    });
+
+    describe('Server Errors', () => {
+      it('should return 500 when database revocation fails', async () => {
+        // Arrange
+        req.body = {
+          requestingToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..requestingJWE',
+          requestingSalt: 'requestingSalt123',
+          targetToken: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..targetJWE',
+          targetSalt: 'targetSalt456'
+        };
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const mockRequestingPayload = {
+          appId: 'test-app-123',
+          jti: 'requesting-jti-123',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        const mockTargetPayload = {
+          appId: 'test-app-456',
+          jti: 'target-jti-456',
+          exp: currentTime + 3600,
+          iat: currentTime
+        };
+
+        tokenService.validateToken
+          .mockResolvedValueOnce(mockRequestingPayload)
+          .mockResolvedValueOnce(mockTargetPayload);
+
+        databaseService.revokeToken.mockRejectedValue(new Error('Database error'));
+
+        // Act
+        await authController.revokeToken(req, res);
 
         // Assert
         expect(res.status).toHaveBeenCalledWith(500);

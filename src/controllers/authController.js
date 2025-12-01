@@ -81,6 +81,19 @@ class AuthController {
    *                 error:
    *                   type: string
    *                   example: "Invalid credentials"
+   *       429:
+   *         description: Too Many Requests - Rate limit exceeded
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: false
+   *                 error:
+   *                   type: string
+   *                   example: "Too many login requests, please try again later"
    *       500:
    *         description: Internal server error
    *         content:
@@ -100,21 +113,6 @@ class AuthController {
       const { password, application_id } = req.body;
       const ipAddress = req.ip;
       const userAgent = req.get('user-agent');
-
-      // Validate required fields
-      if (!password || (typeof password === 'string' && password.trim().length === 0)) {
-        return res.status(400).json({
-          success: false,
-          error: 'password is required'
-        });
-      }
-
-      if (!application_id || (typeof application_id === 'string' && application_id.trim().length === 0)) {
-        return res.status(400).json({
-          success: false,
-          error: 'application_id is required'
-        });
-      }
 
       // Get password hash from database
       const passwordHash = await databaseService.getPasswordHash();
@@ -279,27 +277,25 @@ class AuthController {
    *                 error:
    *                   type: string
    *                   example: "Token has been revoked"
+   *       429:
+   *         description: Too Many Requests - Rate limit exceeded
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: false
+   *                 error:
+   *                   type: string
+   *                   example: "Too many validation requests, please try again later"
    */
   async validate(req, res) {
     try {
       const { token, salt } = req.body;
       const ipAddress = req.ip;
       const userAgent = req.get('user-agent');
-
-      // Validate required fields
-      if (!token || (typeof token === 'string' && token.trim().length === 0)) {
-        return res.status(400).json({
-          valid: false,
-          error: 'token is required'
-        });
-      }
-
-      if (!salt || (typeof salt === 'string' && salt.trim().length === 0)) {
-        return res.status(400).json({
-          valid: false,
-          error: 'salt is required'
-        });
-      }
 
       // Validate token
       const payload = await tokenService.validateToken(token, salt);
@@ -431,21 +427,6 @@ class AuthController {
       const { token, salt } = req.body;
       const ipAddress = req.ip;
       const userAgent = req.get('user-agent');
-
-      // Validate required fields
-      if (!token || (typeof token === 'string' && token.trim().length === 0)) {
-        return res.status(400).json({
-          success: false,
-          error: 'token is required'
-        });
-      }
-
-      if (!salt || (typeof salt === 'string' && salt.trim().length === 0)) {
-        return res.status(400).json({
-          success: false,
-          error: 'salt is required'
-        });
-      }
 
       // Check if token is already revoked
       let payload;
@@ -581,21 +562,6 @@ class AuthController {
     try {
       const { token, salt } = req.body;
 
-      // Validate required fields
-      if (!token || (typeof token === 'string' && token.trim().length === 0)) {
-        return res.status(400).json({
-          success: false,
-          error: 'token is required'
-        });
-      }
-
-      if (!salt || (typeof salt === 'string' && salt.trim().length === 0)) {
-        return res.status(400).json({
-          success: false,
-          error: 'salt is required'
-        });
-      }
-
       // Validate the existing token
       const oldPayload = await tokenService.validateToken(token, salt);
 
@@ -639,6 +605,342 @@ class AuthController {
         });
       }
 
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/auth/token/status:
+   *   get:
+   *     summary: Get detailed token status
+   *     description: Returns detailed information about a token including validity, expiration time, session ID, application ID, and revocation status
+   *     tags:
+   *       - Authentication
+   *     parameters:
+   *       - in: header
+   *         name: Authorization
+   *         schema:
+   *           type: string
+   *         description: Bearer token (optional if token is in body)
+   *         example: "Bearer eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWEtoken"
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - salt
+   *             properties:
+   *               token:
+   *                 type: string
+   *                 description: JWE token to check status (optional if in Authorization header)
+   *                 example: "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..mockJWEtoken"
+   *               salt:
+   *                 type: string
+   *                 description: Base64url encoded salt used during token generation
+   *                 example: "randomSaltValue123"
+   *     responses:
+   *       200:
+   *         description: Token status retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 valid:
+   *                   type: boolean
+   *                   example: true
+   *                 status:
+   *                   type: object
+   *                   properties:
+   *                     expiresIn:
+   *                       type: integer
+   *                       description: Seconds remaining until token expiration
+   *                       example: 3545
+   *                     issuedAt:
+   *                       type: string
+   *                       format: date-time
+   *                       description: Token issued timestamp (ISO 8601)
+   *                       example: "2025-11-27T10:30:00.000Z"
+   *                     sessionId:
+   *                       type: string
+   *                       description: Unique session identifier
+   *                       example: "unique-jti-value-123"
+   *                     applicationId:
+   *                       type: string
+   *                       description: Application identifier
+   *                       example: "web-app-001"
+   *                     revoked:
+   *                       type: boolean
+   *                       description: Token revocation status
+   *                       example: false
+   *                 message:
+   *                   type: string
+   *                   example: "Token is valid"
+   *       400:
+   *         description: Bad request - Missing required fields
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 valid:
+   *                   type: boolean
+   *                   example: false
+   *                 error:
+   *                   type: string
+   *                   example: "token is required"
+   *       401:
+   *         description: Unauthorized - Invalid, expired, or revoked token
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 valid:
+   *                   type: boolean
+   *                   example: false
+   *                 error:
+   *                   type: string
+   *                   example: "Token expired"
+   */
+  async tokenStatus(req, res) {
+    try {
+      // Extract token from Authorization header (Bearer format) or request body
+      let token = req.body.token;
+      if (!token && req.headers.authorization) {
+        const authHeader = req.headers.authorization;
+        if (authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7);
+        }
+      }
+
+      const { salt } = req.body;
+      const ipAddress = req.ip;
+      const userAgent = req.get('user-agent');
+
+      // Validate token and get payload
+      const payload = await tokenService.validateToken(token, salt);
+
+      // Calculate remaining expiration time in seconds
+      const currentTime = Math.floor(Date.now() / 1000);
+      const expiresIn = payload.exp - currentTime;
+
+      // Convert issued at timestamp to ISO string
+      const issuedAt = new Date(payload.iat * 1000).toISOString();
+
+      // Log successful status check
+      await databaseService.logEvent(
+        'token_status_check',
+        payload.appId,
+        ipAddress,
+        userAgent,
+        { jti: payload.jti, valid: true }
+      );
+
+      // Return detailed status
+      return res.status(200).json({
+        valid: true,
+        status: {
+          expiresIn,
+          issuedAt,
+          sessionId: payload.jti,
+          applicationId: payload.appId,
+          revoked: false
+        },
+        message: 'Token is valid'
+      });
+
+    } catch (error) {
+      console.error('Token status error:', error);
+
+      const ipAddress = req.ip;
+      const userAgent = req.get('user-agent');
+
+      // Log failed status check
+      await databaseService.logEvent(
+        'token_status_check_failed',
+        'unknown',
+        ipAddress,
+        userAgent,
+        { reason: error.message }
+      );
+
+      // Return appropriate error response
+      return res.status(401).json({
+        valid: false,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/auth/token/revoke:
+   *   post:
+   *     summary: Revoke a token
+   *     description: Revokes a specified token by adding it to the revocation list. Requires a valid requesting token for authentication.
+   *     tags:
+   *       - Authentication
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - requestingToken
+   *               - requestingSalt
+   *               - targetToken
+   *               - targetSalt
+   *             properties:
+   *               requestingToken:
+   *                 type: string
+   *                 description: JWE token of the authenticated user making the request
+   *                 example: "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..requestingJWEtoken"
+   *               requestingSalt:
+   *                 type: string
+   *                 description: Salt for the requesting token
+   *                 example: "requestingSalt123"
+   *               targetToken:
+   *                 type: string
+   *                 description: JWE token to be revoked
+   *                 example: "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..targetJWEtoken"
+   *               targetSalt:
+   *                 type: string
+   *                 description: Salt for the target token
+   *                 example: "targetSalt456"
+   *               reason:
+   *                 type: string
+   *                 description: Optional reason for revocation
+   *                 example: "User requested logout from all devices"
+   *     responses:
+   *       200:
+   *         description: Token revoked successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: "Token revoked successfully"
+   *                 revokedTokenId:
+   *                   type: string
+   *                   description: JTI of the revoked token
+   *                   example: "unique-jti-value-123"
+   *       400:
+   *         description: Bad request - Missing required fields
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: false
+   *                 error:
+   *                   type: string
+   *                   example: "requestingToken is required"
+   *       401:
+   *         description: Unauthorized - Invalid or expired requesting token
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: false
+   *                 error:
+   *                   type: string
+   *                   example: "Unauthorized: Invalid requesting token"
+   *       500:
+   *         description: Internal server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: false
+   *                 error:
+   *                   type: string
+   *                   example: "Internal server error"
+   */
+  async revokeToken(req, res) {
+    try {
+      const { requestingToken, requestingSalt, targetToken, targetSalt, reason } = req.body;
+      const ipAddress = req.ip;
+      const userAgent = req.get('user-agent');
+
+      // Step 1: Validate the requesting token (authenticate the caller)
+      let requestingPayload;
+      try {
+        requestingPayload = await tokenService.validateToken(requestingToken, requestingSalt);
+      } catch (error) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized: Invalid requesting token'
+        });
+      }
+
+      // Step 2: Validate and decrypt the target token to get its jti
+      let targetPayload;
+      try {
+        targetPayload = await tokenService.validateToken(targetToken, targetSalt);
+      } catch (error) {
+        // If target token is already revoked, that's okay - return success
+        if (error.message.includes('revoked')) {
+          return res.status(200).json({
+            success: true,
+            message: 'Token already revoked'
+          });
+        }
+        // For other errors (expired, invalid), still try to get the jti by decrypting
+        // For simplicity, we'll just return success for already invalid tokens
+        return res.status(200).json({
+          success: true,
+          message: 'Token already revoked or invalid'
+        });
+      }
+
+      // Step 3: Revoke the target token
+      const revocationReason = reason || 'Revoked via API';
+      const expiresAt = new Date(targetPayload.exp * 1000);
+      await databaseService.revokeToken(targetPayload.jti, expiresAt, revocationReason);
+
+      // Step 4: Log the revocation event
+      await databaseService.logEvent(
+        'token_revoked',
+        targetPayload.appId,
+        ipAddress,
+        userAgent,
+        {
+          revokedJti: targetPayload.jti,
+          requestingJti: requestingPayload.jti,
+          reason: revocationReason
+        }
+      );
+
+      // Return success response
+      return res.status(200).json({
+        success: true,
+        message: 'Token revoked successfully',
+        revokedTokenId: targetPayload.jti
+      });
+
+    } catch (error) {
+      console.error('Token revocation error:', error);
       return res.status(500).json({
         success: false,
         error: 'Internal server error'

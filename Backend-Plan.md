@@ -304,37 +304,48 @@ Build a secure authentication middleware API that generates and validates JWE to
 
 ## Phase 6: Security & Middleware
 
-### Task 6.1: Implement Rate Limiting
-- [ ] Create rate limiter for login endpoint (5 attempts/minute)
-- [ ] Create rate limiter for validation endpoint (100 requests/minute)
-- [ ] Add rate limiting middleware to routes
-- [ ] Return 429 status when rate limit exceeded
-- [ ] Log rate limit violations
+### Task 6.1: Implement Rate Limiting ✅
+- [x] Create rate limiter for login endpoint (5 attempts/minute)
+- [x] Create rate limiter for validation endpoint (100 requests/minute)
+- [x] Add rate limiting middleware to routes
+- [x] Return 429 status when rate limit exceeded
+- [x] Log rate limit violations
 
-**Completion Criteria**: Rate limiting prevents brute force attacks
+**Completion Criteria**: Rate limiting prevents brute force attacks ✅
 
----
-
-### Task 6.2: Implement Request Validation Middleware
-- [ ] Create `src/middleware/validation.js`
-- [ ] Add schema validation for login request
-- [ ] Add schema validation for validate request
-- [ ] Add schema validation for logout request
-- [ ] Validate required fields are present
-- [ ] Return 400 for invalid requests
-
-**Completion Criteria**: Invalid requests rejected before processing
+**Completed**: 2025-12-01
+**Details**: See [tasks/todo_rate_limiting.md](tasks/todo_rate_limiting.md)
 
 ---
 
-### Task 6.3: Implement CORS Configuration
-- [ ] Configure CORS to allow specific origins
-- [ ] Set allowed methods: POST, GET
-- [ ] Set allowed headers: Content-Type, Authorization
-- [ ] Enable credentials if needed
-- [ ] Create whitelist of allowed domains
+### Task 6.2: Implement Request Validation Middleware ✅
+- [x] Create `src/middleware/validation.js`
+- [x] Add schema validation for login request
+- [x] Add schema validation for validate request
+- [x] Add schema validation for logout request
+- [x] Add schema validation for refresh request
+- [x] Add schema validation for token status request
+- [x] Add schema validation for revoke token request
+- [x] Validate required fields are present
+- [x] Return 400 for invalid requests
+
+**Completion Criteria**: Invalid requests rejected before processing ✅
+
+**Completed**: 2025-12-01
+**Details**: See [tasks/todo_request_validation.md](tasks/todo_request_validation.md)
+
+---
+
+### Task 6.3: Implement CORS Configuration ✅
+- [x] Configure CORS to allow specific origins
+- [x] Set allowed methods: POST, GET
+- [x] Set allowed headers: Content-Type, Authorization
+- [x] Enable credentials if needed
+- [x] Create whitelist of allowed domains
 
 **Completion Criteria**: CORS properly configured for cross-origin requests
+
+**Details**: See [tasks/todo_cors_configuration.md](tasks/todo_cors_configuration.md)
 
 ---
 

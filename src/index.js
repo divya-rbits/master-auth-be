@@ -1,17 +1,18 @@
 require('dotenv').config();
 const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const authRoutes = require('./routes/auth');
+const { corsMiddleware } = require('./middleware/corsConfig');
+const { securityHeadersMiddleware } = require('./middleware/securityHeaders');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(helmet());
-app.use(cors());
+app.use(securityHeadersMiddleware);
+app.use(corsMiddleware);
 app.use(express.json());
 
 // API Routes
@@ -61,16 +62,11 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: {
-      message: err.message || 'Internal server error',
-      status: err.status || 500
-    }
-  });
-});
+// 404 handler for undefined routes
+app.use(notFoundHandler);
+
+// Global error handling middleware
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
