@@ -4,11 +4,17 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const healthRoutes = require('./routes/health');
 const { corsMiddleware } = require('./middleware/corsConfig');
 const { securityHeadersMiddleware } = require('./middleware/securityHeaders');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { requestLogger } = require('./middleware/requestLogger');
 const logger = require('./config/logger');
+const { validateEnvironment, printEnvironmentSummary } = require('./config/validateEnv');
+
+// Validate environment variables before starting server
+validateEnvironment();
+printEnvironmentSummary();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +29,9 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
+// Health check routes
+app.use('/health', healthRoutes);
+
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   explorer: true,
@@ -34,37 +43,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 app.get('/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
-});
-
-/**
- * @swagger
- * /health:
- *   get:
- *     summary: Health check endpoint
- *     description: Returns the health status of the API server
- *     tags:
- *       - System
- *     responses:
- *       200:
- *         description: Server is healthy and running
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: ok
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                   example: 2025-11-25T10:30:00.000Z
- */
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString()
-  });
 });
 
 // 404 handler for undefined routes

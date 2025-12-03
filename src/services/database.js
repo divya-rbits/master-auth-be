@@ -7,67 +7,39 @@ const supabase = require('../config/supabase');
  */
 class DatabaseService {
   /**
-   * Retrieves the master password hash from auth_config table
-   * @returns {Promise<string|null>} The password hash or null if not set
-   * @throws {Error} If database query fails
+   * Retrieves the master password hash for a specific application
+   * @param {string} applicationId - The application ID to get the password hash for
+   * @returns {Promise<string|null>} The password hash or null if not found
+   * @throws {Error} If database query fails or applicationId is invalid
    */
-  async getPasswordHash() {
+  async getPasswordHash(applicationId) {
     try {
+      if (!applicationId || typeof applicationId !== 'string') {
+        throw new Error('Invalid application ID provided');
+      }
+
       const { data, error } = await supabase
-        .from('auth_config')
-        .select('password_hash')
-        .eq('id', 1)
+        .from('applications')
+        .select('master_password_hash')
+        .eq('app_id', applicationId)
+        .eq('is_active', true)
         .single();
 
       if (error) {
-        // If no row exists yet, return null instead of throwing
+        // If no row exists, return null instead of throwing
         if (error.code === 'PGRST116') {
           return null;
         }
         throw error;
       }
 
-      return data ? data.password_hash : null;
+      return data ? data.master_password_hash : null;
     } catch (error) {
       console.error('Error fetching password hash:', error);
       throw new Error('Failed to retrieve password hash');
     }
   }
 
-  /**
-   * Updates or inserts the master password hash
-   * @param {string} newHash - The new Argon2 password hash
-   * @returns {Promise<boolean>} Success status
-   * @throws {Error} If database operation fails
-   */
-  async updatePasswordHash(newHash) {
-    try {
-      if (!newHash || typeof newHash !== 'string') {
-        throw new Error('Invalid password hash provided');
-      }
-
-      // Use upsert to insert or update
-      const { error } = await supabase
-        .from('auth_config')
-        .upsert(
-          {
-            id: 1,
-            password_hash: newHash,
-            updated_at: new Date().toISOString()
-          },
-          { onConflict: 'id' }
-        );
-
-      if (error) {
-        throw error;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error updating password hash:', error);
-      throw new Error('Failed to update password hash');
-    }
-  }
 
   /**
    * Checks if a token has been revoked
@@ -235,9 +207,12 @@ class DatabaseService {
    * - token_status_check: Token status checked
    * - token_status_check_failed: Token status check failed
    * - rate_limit_exceeded: Rate limit exceeded
+   * - admin_login_success: Admin successfully logged in
+   * - admin_login_failed: Admin login failed
+   * - admin_logout: Admin logged out
    *
    * @param {string} eventType - Type of event (login_success, login_failed, etc.)
-   * @param {string} applicationId - ID of the application
+   * @param {string} applicationId - ID of the application (or admin username for admin events)
    * @param {string} ipAddress - IP address of the request
    * @param {string} userAgent - User agent string
    * @param {Object} details - Additional structured data
@@ -344,6 +319,70 @@ class DatabaseService {
     } catch (error) {
       console.error('Error querying audit logs:', error);
       throw new Error('Failed to query audit logs');
+    }
+  }
+
+  /**
+   * Retrieves all applications with pagination and sorting
+   * Excludes sensitive fields (master_password_hash, app_secret)
+   * @param {Object} params - Query parameters
+   * @param {number} [params.limit=50] - Maximum results per page (max 100)
+   * @param {number} [params.offset=0] - Number of results to skip
+   * @param {string} [params.sortBy='created_at'] - Field to sort by (name, created_at)
+   * @param {string} [params.order='desc'] - Sort order (asc, desc)
+   * @returns {Promise<Object>} Query results with applications array and pagination info
+   * @throws {Error} If database query fails
+   */
+  async getAllApplications({
+    limit = 50,
+    offset = 0,
+    sortBy = 'created_at',
+    order = 'desc'
+  } = {}) {
+    try {
+      // Enforce limits
+      const safeLimit = Math.min(Math.max(1, limit), 100);
+      const safeOffset = Math.max(0, offset);
+
+      // Validate sortBy field
+      const validSortFields = ['name', 'created_at'];
+      const safeSortBy = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+
+      // Map 'name' to 'app_name' for database column
+      const dbSortField = safeSortBy === 'name' ? 'app_name' : safeSortBy;
+
+      // Validate order
+      const safeOrder = order === 'asc' ? 'asc' : 'desc';
+      const ascending = safeOrder === 'asc';
+
+      // Build query - select only non-sensitive fields
+      let query = supabase
+        .from('applications')
+        .select('id, app_id, app_name, is_active, created_at, updated_at', { count: 'exact' });
+
+      // Apply sorting
+      query = query.order(dbSortField, { ascending });
+
+      // Apply pagination
+      const rangeEnd = safeOffset + safeLimit - 1;
+      query = query.range(safeOffset, rangeEnd);
+
+      // Execute query
+      const { data, error, count } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        applications: data || [],
+        total: count || 0,
+        limit: safeLimit,
+        offset: safeOffset
+      };
+    } catch (error) {
+      console.error('Error retrieving applications:', error);
+      throw new Error('Failed to retrieve applications');
     }
   }
 }

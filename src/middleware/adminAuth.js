@@ -1,75 +1,59 @@
+const adminAuthService = require('../services/adminAuth');
 const { AuthenticationError, InternalServerError } = require('../utils/errors');
 
 /**
  * Admin Authentication Middleware
- * Uses HTTP Basic Authentication to protect admin endpoints
- * Credentials are stored in environment variables
+ * Uses JWT Bearer tokens to protect admin endpoints
+ * Tokens are generated via /api/admin/auth/login endpoint
  */
 const adminAuthMiddleware = (req, res, next) => {
   try {
-    // Check if admin credentials are configured
-    const adminUsername = process.env.ADMIN_USERNAME;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!adminUsername || !adminPassword) {
-      throw new InternalServerError('Admin credentials not configured');
+    // Check if admin JWT secret is configured
+    if (!process.env.ADMIN_JWT_SECRET) {
+      throw new InternalServerError('Admin JWT secret not configured');
     }
 
     // Get Authorization header
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-      res.setHeader('WWW-Authenticate', 'Basic realm="Admin Area"');
       throw new AuthenticationError('Authentication required');
     }
 
-    // Parse Basic Auth header
-    const [authType, credentials] = authHeader.split(' ');
+    // Parse Bearer token
+    const parts = authHeader.trim().split(/\s+/);
+    const authType = parts[0];
+    const token = parts[1];
 
-    if (authType !== 'Basic') {
-      res.setHeader('WWW-Authenticate', 'Basic realm="Admin Area"');
-      throw new AuthenticationError('Invalid authentication type. Basic auth required');
+    if (authType !== 'Bearer') {
+      throw new AuthenticationError('Bearer token required');
     }
 
-    if (!credentials) {
-      res.setHeader('WWW-Authenticate', 'Basic realm="Admin Area"');
-      throw new AuthenticationError('Missing credentials');
+    if (!token || token.trim() === '') {
+      throw new AuthenticationError('Token not provided');
     }
 
-    // Decode base64 credentials
-    let decodedCredentials;
+    // Verify JWT token
+    let payload;
     try {
-      decodedCredentials = Buffer.from(credentials, 'base64').toString('utf-8');
+      payload = adminAuthService.verifyAdminToken(token.trim());
     } catch (error) {
-      res.setHeader('WWW-Authenticate', 'Basic realm="Admin Area"');
-      throw new AuthenticationError('Invalid credentials format');
+      // Handle specific JWT errors
+      if (error.message.includes('expired')) {
+        throw new AuthenticationError('Token expired');
+      }
+      if (error.message.includes('invalid')) {
+        throw new AuthenticationError('Invalid token');
+      }
+      throw new AuthenticationError('Token verification failed');
     }
 
-    // Split username and password
-    const colonIndex = decodedCredentials.indexOf(':');
-    if (colonIndex === -1) {
-      res.setHeader('WWW-Authenticate', 'Basic realm="Admin Area"');
-      throw new AuthenticationError('Invalid credentials format');
-    }
+    // Attach admin user to request
+    req.admin = {
+      username: payload.username,
+      role: payload.role
+    };
 
-    const username = decodedCredentials.substring(0, colonIndex);
-    const password = decodedCredentials.substring(colonIndex + 1);
-
-    // Validate credentials are not empty
-    if (!username || !password) {
-      res.setHeader('WWW-Authenticate', 'Basic realm="Admin Area"');
-      throw new AuthenticationError('Username and password are required');
-    }
-
-    // Compare with configured credentials
-    // Using simple string comparison for Basic Auth
-    if (username !== adminUsername || password !== adminPassword) {
-      res.setHeader('WWW-Authenticate', 'Basic realm="Admin Area"');
-      throw new AuthenticationError('Invalid credentials');
-    }
-
-    // Authentication successful
-    req.admin = { username };
     next();
   } catch (error) {
     // Pass error to error handler middleware

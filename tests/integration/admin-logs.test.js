@@ -3,21 +3,27 @@ const express = require('express');
 const adminRoutes = require('../../src/routes/admin');
 const { errorHandler } = require('../../src/middleware/errorHandler');
 const databaseService = require('../../src/services/database');
+const adminAuthService = require('../../src/services/adminAuth');
 
 // Mock database service
 jest.mock('../../src/services/database');
 
 describe('Admin Logs Endpoint - Integration Tests', () => {
   let app;
-  const validCredentials = Buffer.from('admin:admin_password_here').toString('base64');
+  let validToken;
 
   beforeAll(() => {
-    // Set admin credentials
+    // Set admin credentials and JWT secret
     process.env.ADMIN_USERNAME = 'admin';
     process.env.ADMIN_PASSWORD = 'admin_password_here';
+    process.env.ADMIN_JWT_SECRET = 'test-admin-jwt-secret';
+    process.env.ADMIN_SESSION_TIMEOUT = '1800';
   });
 
   beforeEach(() => {
+    // Generate a valid token for tests
+    validToken = adminAuthService.generateAdminToken('admin');
+
     app = express();
     app.use(express.json());
     app.use('/api/admin', adminRoutes);
@@ -49,7 +55,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -65,11 +71,11 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
     });
 
     test('should reject request with invalid credentials', async () => {
-      const invalidCredentials = Buffer.from('admin:wrongpassword').toString('base64');
+      const invalidToken = 'invalid.jwt.token';
 
       const response = await request(app)
         .get('/api/admin/logs')
-        .set('Authorization', `Basic ${invalidCredentials}`);
+        .set('Authorization', `Bearer ${invalidToken}`);
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
@@ -87,7 +93,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs?event_type=login_success')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(databaseService.queryAuditLogs).toHaveBeenCalledWith(
@@ -109,7 +115,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs?application_id=test-app')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(databaseService.queryAuditLogs).toHaveBeenCalledWith(
@@ -131,7 +137,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs?start_date=2025-12-01T00:00:00Z&end_date=2025-12-02T23:59:59Z')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(databaseService.queryAuditLogs).toHaveBeenCalledWith(
@@ -154,7 +160,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs?limit=25&offset=50')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(databaseService.queryAuditLogs).toHaveBeenCalledWith(
@@ -179,7 +185,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs?event_type=login_success&application_id=test-app&limit=10')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(databaseService.queryAuditLogs).toHaveBeenCalledWith({
@@ -204,7 +210,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(response.body.data.logs).toEqual([]);
@@ -217,7 +223,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(500);
       expect(response.body.success).toBe(false);
@@ -235,7 +241,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.headers['ratelimit-limit']).toBeDefined();
       expect(response.headers['ratelimit-remaining']).toBeDefined();
@@ -253,7 +259,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(response.body.data.pagination.hasMore).toBe(true);
@@ -271,7 +277,7 @@ describe('Admin Logs Endpoint - Integration Tests', () => {
 
       const response = await request(app)
         .get('/api/admin/logs?application_id=test-app%2Bspecial')
-        .set('Authorization', `Basic ${validCredentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(databaseService.queryAuditLogs).toHaveBeenCalledWith(

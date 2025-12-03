@@ -114,8 +114,8 @@ class AuthController {
       const ipAddress = req.ip;
       const userAgent = req.get('user-agent');
 
-      // Get password hash from database
-      const passwordHash = await databaseService.getPasswordHash();
+      // Get password hash from database for this specific application
+      const passwordHash = await databaseService.getPasswordHash(application_id);
 
       if (!passwordHash) {
         await databaseService.logEvent(
@@ -123,7 +123,7 @@ class AuthController {
           application_id,
           ipAddress,
           userAgent,
-          { reason: 'Password not configured' }
+          { reason: 'Application not found or password not configured' }
         );
 
         return res.status(401).json({

@@ -1,13 +1,11 @@
 const argon2 = require('argon2');
-const dbService = require('../src/services/database');
 const supabase = require('../src/config/supabase');
 
 /**
  * Database Seeding Script
  *
  * Seeds the database with:
- * 1. Master password hash in auth_config table
- * 2. Test application in applications table
+ * 1. Test application in applications table (includes per-application master password hash)
  *
  * Usage: node scripts/seed.js
  */
@@ -24,35 +22,8 @@ const ARGON2_CONFIG = {
 const DEV_MASTER_PASSWORD = 'MasterPassword123!';
 const DEV_APP_SECRET = 'test-secret-123';
 
-async function seedMasterPassword() {
-  console.log('📝 Seeding master password...');
-
-  try {
-    // Check if password already exists
-    const existingHash = await dbService.getPasswordHash();
-
-    if (existingHash) {
-      console.log('⚠️  Master password already exists in database');
-      console.log('   Skipping password seeding (use scripts/reset.js to reset)');
-      return false;
-    }
-
-    // Hash the master password
-    const passwordHash = await argon2.hash(DEV_MASTER_PASSWORD, ARGON2_CONFIG);
-
-    // Store in database
-    await dbService.updatePasswordHash(passwordHash);
-
-    console.log('✅ Master password seeded successfully');
-    console.log(`   Password: ${DEV_MASTER_PASSWORD}`);
-    console.log('   ⚠️  CHANGE THIS IN PRODUCTION!');
-
-    return true;
-  } catch (error) {
-    console.error('❌ Error seeding master password:', error.message);
-    throw error;
-  }
-}
+// Note: Master password is now set per-application in seedTestApplication()
+// This function is kept for reference but is no longer used
 
 async function seedTestApplication() {
   console.log('\n📝 Seeding test application...');
@@ -74,13 +45,17 @@ async function seedTestApplication() {
     // Hash the application secret
     const appSecretHash = await argon2.hash(DEV_APP_SECRET, ARGON2_CONFIG);
 
-    // Insert test application
-    const { data, error } = await supabase
+    // Hash the master password for this application
+    const masterPasswordHash = await argon2.hash(DEV_MASTER_PASSWORD, ARGON2_CONFIG);
+
+    // Insert test application with its own master password
+    const { error } = await supabase
       .from('applications')
       .insert({
         app_id: 'test-app',
         app_name: 'Test Application',
         app_secret: appSecretHash,
+        master_password_hash: masterPasswordHash,
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -95,6 +70,7 @@ async function seedTestApplication() {
     console.log('✅ Test application seeded successfully');
     console.log(`   App ID: test-app`);
     console.log(`   App Secret: ${DEV_APP_SECRET}`);
+    console.log(`   Master Password: ${DEV_MASTER_PASSWORD}`);
     console.log('   ⚠️  FOR DEVELOPMENT ONLY!');
 
     return true;
@@ -108,14 +84,6 @@ async function verifySeededData() {
   console.log('\n🔍 Verifying seeded data...');
 
   try {
-    // Verify master password
-    const passwordHash = await dbService.getPasswordHash();
-    if (passwordHash) {
-      console.log('✅ Master password hash exists in database');
-    } else {
-      console.log('❌ Master password hash NOT found');
-    }
-
     // Verify test application
     const { data: app, error } = await supabase
       .from('applications')
@@ -127,6 +95,13 @@ async function verifySeededData() {
       console.log('✅ Test application exists in database');
       console.log(`   Name: ${app.app_name}`);
       console.log(`   Active: ${app.is_active}`);
+
+      // Verify master password hash is set for this application
+      if (app.master_password_hash) {
+        console.log('✅ Master password hash is set for test application');
+      } else {
+        console.log('❌ Master password hash NOT set for test application');
+      }
     } else {
       console.log('❌ Test application NOT found');
     }
@@ -144,10 +119,7 @@ async function main() {
   console.log('⚠️  DO NOT use these credentials in production!\n');
 
   try {
-    // Seed master password
-    await seedMasterPassword();
-
-    // Seed test application
+    // Seed test application (includes master password for this app)
     await seedTestApplication();
 
     // Verify all data

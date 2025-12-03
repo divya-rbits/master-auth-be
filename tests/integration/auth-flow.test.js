@@ -172,7 +172,7 @@ describe('Authentication Flow Integration Tests', () => {
         'test-app-001',
         expect.any(String),
         'Mozilla/5.0 Integration Test',
-        { reason: 'Password not configured' }
+        { reason: 'Application not found or password not configured' }
       );
     });
 

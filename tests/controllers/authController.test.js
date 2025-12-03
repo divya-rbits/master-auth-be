@@ -57,7 +57,7 @@ describe('AuthController', () => {
         await authController.login(req, res);
 
         // Assert
-        expect(databaseService.getPasswordHash).toHaveBeenCalled();
+        expect(databaseService.getPasswordHash).toHaveBeenCalledWith('test-app-123');
         expect(passwordService.verifyPassword).toHaveBeenCalledWith('ValidPassword123', mockHash);
         expect(tokenService.generateToken).toHaveBeenCalledWith('test-app-123');
         expect(databaseService.logEvent).toHaveBeenCalledWith(

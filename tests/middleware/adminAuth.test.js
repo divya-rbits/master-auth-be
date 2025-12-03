@@ -2,9 +2,11 @@ const request = require('supertest');
 const express = require('express');
 const { adminAuthMiddleware } = require('../../src/middleware/adminAuth');
 const { errorHandler } = require('../../src/middleware/errorHandler');
+const adminAuthService = require('../../src/services/adminAuth');
 
-describe('Admin Authentication Middleware', () => {
+describe('Admin Authentication Middleware (JWT)', () => {
   let app;
+  let validToken;
 
   // Store original env vars
   const originalEnv = { ...process.env };
@@ -13,13 +15,22 @@ describe('Admin Authentication Middleware', () => {
     // Set default admin credentials for testing
     process.env.ADMIN_USERNAME = 'admin';
     process.env.ADMIN_PASSWORD = 'admin_password_here';
+    process.env.ADMIN_JWT_SECRET = 'test-admin-jwt-secret';
+    process.env.ADMIN_SESSION_TIMEOUT = '1800';
+
+    // Generate a valid token for tests
+    validToken = adminAuthService.generateAdminToken('admin');
 
     app = express();
     app.use(express.json());
 
     // Test route protected by admin auth
     app.get('/admin/test', adminAuthMiddleware, (req, res) => {
-      res.json({ success: true, message: 'Admin authenticated' });
+      res.json({
+        success: true,
+        message: 'Admin authenticated',
+        username: req.admin.username
+      });
     });
 
     // Add error handler
@@ -32,38 +43,32 @@ describe('Admin Authentication Middleware', () => {
   });
 
   describe('Valid Authentication', () => {
-    test('should allow access with correct credentials', async () => {
-      const username = process.env.ADMIN_USERNAME || 'admin';
-      const password = process.env.ADMIN_PASSWORD || 'admin_password_here';
-      const credentials = Buffer.from(`${username}:${password}`).toString('base64');
-
+    test('should allow access with valid JWT token', async () => {
       const response = await request(app)
         .get('/admin/test')
-        .set('Authorization', `Basic ${credentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
+      expect(response.body.username).toBe('admin');
     });
 
-    test('should handle credentials with special characters', async () => {
-      // Temporarily set env vars with special characters
-      const originalUsername = process.env.ADMIN_USERNAME;
-      const originalPassword = process.env.ADMIN_PASSWORD;
-
-      process.env.ADMIN_USERNAME = 'admin@test';
-      process.env.ADMIN_PASSWORD = 'pass:word!@#';
-
-      const credentials = Buffer.from('admin@test:pass:word!@#').toString('base64');
-
+    test('should attach admin user to request object', async () => {
       const response = await request(app)
         .get('/admin/test')
-        .set('Authorization', `Basic ${credentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(200);
+      expect(response.body.username).toBe('admin');
+    });
 
-      // Restore original env vars
-      process.env.ADMIN_USERNAME = originalUsername;
-      process.env.ADMIN_PASSWORD = originalPassword;
+    test('should handle token with extra whitespace', async () => {
+      const response = await request(app)
+        .get('/admin/test')
+        .set('Authorization', `Bearer  ${validToken}  `);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
     });
   });
 
@@ -79,77 +84,59 @@ describe('Admin Authentication Middleware', () => {
     test('should reject request with invalid Authorization format', async () => {
       const response = await request(app)
         .get('/admin/test')
-        .set('Authorization', 'InvalidFormat credentials');
+        .set('Authorization', 'InvalidFormat token');
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('Bearer token required');
+    });
+
+    test('should reject request with missing token', async () => {
+      const response = await request(app)
+        .get('/admin/test')
+        .set('Authorization', 'Bearer ');
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('Token not provided');
+    });
+
+    test('should reject request with malformed JWT token', async () => {
+      const response = await request(app)
+        .get('/admin/test')
+        .set('Authorization', 'Bearer invalid.jwt.token');
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
     });
 
-    test('should reject request with malformed base64', async () => {
+    test('should reject expired JWT token', async () => {
+      // Generate an expired token
+      process.env.ADMIN_SESSION_TIMEOUT = '0';
+      const expiredToken = adminAuthService.generateAdminToken('admin');
+
+      // Wait a bit to ensure expiration
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const response = await request(app)
         .get('/admin/test')
-        .set('Authorization', 'Basic invalid!!!base64');
+        .set('Authorization', `Bearer ${expiredToken}`);
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
     });
 
-    test('should reject request with incorrect username', async () => {
-      const password = process.env.ADMIN_PASSWORD || 'admin_password_here';
-      const credentials = Buffer.from(`wronguser:${password}`).toString('base64');
+    test('should reject token signed with wrong secret', async () => {
+      const jwt = require('jsonwebtoken');
+      const wrongToken = jwt.sign(
+        { username: 'admin', role: 'admin' },
+        'wrong-secret',
+        { expiresIn: '30m' }
+      );
 
       const response = await request(app)
         .get('/admin/test')
-        .set('Authorization', `Basic ${credentials}`);
-
-      expect(response.status).toBe(401);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toContain('Invalid credentials');
-    });
-
-    test('should reject request with incorrect password', async () => {
-      const username = process.env.ADMIN_USERNAME || 'admin';
-      const credentials = Buffer.from(`${username}:wrongpassword`).toString('base64');
-
-      const response = await request(app)
-        .get('/admin/test')
-        .set('Authorization', `Basic ${credentials}`);
-
-      expect(response.status).toBe(401);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toContain('Invalid credentials');
-    });
-
-    test('should reject request with missing username', async () => {
-      const password = process.env.ADMIN_PASSWORD || 'admin_password_here';
-      const credentials = Buffer.from(`:${password}`).toString('base64');
-
-      const response = await request(app)
-        .get('/admin/test')
-        .set('Authorization', `Basic ${credentials}`);
-
-      expect(response.status).toBe(401);
-      expect(response.body.success).toBe(false);
-    });
-
-    test('should reject request with missing password', async () => {
-      const username = process.env.ADMIN_USERNAME || 'admin';
-      const credentials = Buffer.from(`${username}:`).toString('base64');
-
-      const response = await request(app)
-        .get('/admin/test')
-        .set('Authorization', `Basic ${credentials}`);
-
-      expect(response.status).toBe(401);
-      expect(response.body.success).toBe(false);
-    });
-
-    test('should reject request with empty credentials', async () => {
-      const credentials = Buffer.from(':').toString('base64');
-
-      const response = await request(app)
-        .get('/admin/test')
-        .set('Authorization', `Basic ${credentials}`);
+        .set('Authorization', `Bearer ${wrongToken}`);
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
@@ -157,45 +144,19 @@ describe('Admin Authentication Middleware', () => {
   });
 
   describe('Environment Configuration', () => {
-    test('should fail gracefully if ADMIN_USERNAME not configured', async () => {
-      const originalUsername = process.env.ADMIN_USERNAME;
-      delete process.env.ADMIN_USERNAME;
-
-      const credentials = Buffer.from('admin:password').toString('base64');
+    test('should fail gracefully if ADMIN_JWT_SECRET not configured', async () => {
+      const originalSecret = process.env.ADMIN_JWT_SECRET;
+      delete process.env.ADMIN_JWT_SECRET;
 
       const response = await request(app)
         .get('/admin/test')
-        .set('Authorization', `Basic ${credentials}`);
+        .set('Authorization', `Bearer ${validToken}`);
 
       expect(response.status).toBe(500);
       expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('Admin JWT secret not configured');
 
-      process.env.ADMIN_USERNAME = originalUsername;
-    });
-
-    test('should fail gracefully if ADMIN_PASSWORD not configured', async () => {
-      const originalPassword = process.env.ADMIN_PASSWORD;
-      delete process.env.ADMIN_PASSWORD;
-
-      const credentials = Buffer.from('admin:password').toString('base64');
-
-      const response = await request(app)
-        .get('/admin/test')
-        .set('Authorization', `Basic ${credentials}`);
-
-      expect(response.status).toBe(500);
-      expect(response.body.success).toBe(false);
-
-      process.env.ADMIN_PASSWORD = originalPassword;
-    });
-  });
-
-  describe('Security Headers', () => {
-    test('should include WWW-Authenticate header on 401', async () => {
-      const response = await request(app).get('/admin/test');
-
-      expect(response.status).toBe(401);
-      expect(response.headers['www-authenticate']).toBe('Basic realm="Admin Area"');
+      process.env.ADMIN_JWT_SECRET = originalSecret;
     });
   });
 

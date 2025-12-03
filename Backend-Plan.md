@@ -543,6 +543,8 @@ Build a secure authentication middleware API that generates and validates JWE to
 
 **Completion Criteria**: Expired tokens automatically removed
 
+NOT DONE
+
 ---
 
 ### Task 10.5: Deploy to Production
@@ -557,9 +559,11 @@ Build a secure authentication middleware API that generates and validates JWE to
 
 **Completion Criteria**: Backend live and accessible via HTTPS
 
+NOT DONE
+
 ---
 
-## Phase 11: Advanced Features (Optional)
+## Phase 11: Advanced Features (Optional) NOT DONE
 
 ### Task 11.1: Implement Application Management
 - [ ] Create endpoint to register new applications
@@ -628,44 +632,55 @@ Build admin panel backend APIs to manage multiple applications, each with their 
 
 ---
 
-### Task 12.1: Database Migration - Multi-Master Password Support
-- [ ] Create migration to add `master_password_hash` column to `applications` table (TEXT, NOT NULL)
-- [ ] Migrate existing test application to have its own master password hash
-- [ ] Create migration to drop `auth_config` table (no longer needed)
-- [ ] Update database service to query password hash from applications table
-- [ ] Update all references from global password to per-application password
-- [ ] Test password retrieval for specific application
+### Task 12.1: Database Migration - Multi-Master Password Support ✅
+- [x] Create migration to add `master_password_hash` column to `applications` table (TEXT, NOT NULL)
+- [x] Migrate existing test application to have its own master password hash
+- [x] Create migration to drop `auth_config` table (no longer needed)
+- [x] Update database service to query password hash from applications table
+- [x] Update all references from global password to per-application password
+- [x] Test password retrieval for specific application
 
-**Completion Criteria**: Each application has its own master password hash
+**Completion Criteria**: Each application has its own master password hash ✅
 
----
-
-### Task 12.2: Update Authentication Flow for Per-Application Passwords
-- [ ] Modify token generation to use application-specific password hash
-- [ ] Update `POST /api/auth/login` to require `application_id` parameter
-- [ ] Retrieve password hash from `applications` table based on `application_id`
-- [ ] Derive CEK using application-specific master password
-- [ ] Test login with different applications using different passwords
-- [ ] Update Swagger documentation
-
-**Completion Criteria**: Login works with per-application master passwords
+**Status**: COMPLETED - See [tasks/todo_multi_master_password_migration.md](tasks/todo_multi_master_password_migration.md)
 
 ---
 
-### Task 12.3: Admin Authentication - Setup
-- [ ] Add admin credentials to `.env.example`:
+### Task 12.2: Update Authentication Flow for Per-Application Passwords ✅
+- [x] Modify token generation to use application-specific password hash
+- [x] Update `POST /api/auth/login` to require `application_id` parameter
+- [x] Retrieve password hash from `applications` table based on `application_id`
+- [x] Derive CEK using application-specific master password
+- [x] Test login with different applications using different passwords
+- [x] Update Swagger documentation
+
+**Completion Criteria**: Login works with per-application master passwords ✅
+
+**Status**: COMPLETED - See [tasks/todo_per_application_auth_flow.md](tasks/todo_per_application_auth_flow.md)
+
+**Architecture Decision**: Using global MASTER_PASSWORD for token encryption/decryption, per-application passwords for authentication. This provides clean separation of concerns:
+- Authentication Layer: Per-application passwords (stored as Argon2 hashes)
+- Encryption Layer: Global master password (for token confidentiality)
+
+---
+
+### Task 12.3: Admin Authentication - Setup ✅
+- [x] Add admin credentials to `.env.example`:
   ```
-  ADMIN_EMAIL=admin@localhost
+  ADMIN_USERNAME=admin
   ADMIN_PASSWORD=admin_password_here
   ADMIN_JWT_SECRET=admin_jwt_secret_here
   ADMIN_SESSION_TIMEOUT=1800
   ```
-- [ ] Create `src/services/adminAuth.js` for admin authentication
-- [ ] Implement simple email/password verification (compare with env vars)
-- [ ] Implement admin JWT token generation (separate from main auth)
-- [ ] Configure admin session timeout (30 minutes)
+- [x] Create `src/services/adminAuth.js` for admin authentication
+- [x] Implement simple username/password verification (compare with env vars)
+- [x] Implement admin JWT token generation (separate from main auth)
+- [x] Configure admin session timeout (30 minutes)
+- [x] Write comprehensive unit tests (42 tests, all passing)
 
-**Completion Criteria**: Admin auth service ready
+**Completion Criteria**: Admin auth service ready ✅
+
+**Status**: COMPLETED - See [tasks/todo_admin_authentication_setup.md](tasks/todo_admin_authentication_setup.md)
 
 ---
 
