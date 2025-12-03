@@ -235,7 +235,10 @@ describe('JWE Service', () => {
 
       // Modified JWE should fail tag validation
       const parts = jwe.split('.');
-      parts[4] = parts[4].slice(0, -1) + 'X'; // Modify last char of tag
+      // Flip multiple bits by replacing characters in the auth tag
+      const originalTag = parts[4];
+      const modifiedTag = originalTag.substring(0, 4) + 'AAAA' + originalTag.substring(8);
+      parts[4] = modifiedTag;
       const invalidJWE = parts.join('.');
 
       await expect(jweService.decryptJWE(invalidJWE, validCEK))

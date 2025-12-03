@@ -1,4 +1,5 @@
 const { AppError } = require('../utils/errors');
+const logger = require('../config/logger');
 
 /**
  * Global Error Handler Middleware
@@ -64,7 +65,6 @@ function normalizeError(err) {
  */
 function logError(error, req) {
   const logData = {
-    timestamp: new Date().toISOString(),
     method: req.method,
     url: req.url,
     ip: req.ip,
@@ -77,17 +77,17 @@ function logError(error, req) {
   // Determine log level based on status code
   if (error.statusCode >= 500) {
     // Server errors - log with full details including stack trace
-    console.error('[ERROR]', {
+    logger.error('Server error occurred', {
       ...logData,
       stack: error.stack,
       details: error.details
     });
   } else if (error.statusCode >= 400) {
     // Client errors - log as warning without stack trace
-    console.warn('[WARN]', logData);
+    logger.warn('Client error occurred', logData);
   } else {
     // Other errors
-    console.log('[INFO]', logData);
+    logger.info('Request error', logData);
   }
 }
 

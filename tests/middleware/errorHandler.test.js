@@ -8,21 +8,25 @@ const {
   NotFoundError,
   InternalServerError
 } = require('../../src/utils/errors');
+const logger = require('../../src/config/logger');
 
 describe('Error Handler Middleware', () => {
   let app;
-  let consoleErrorSpy;
+  let loggerErrorSpy;
+  let loggerWarnSpy;
 
   beforeEach(() => {
     app = express();
     app.use(express.json());
 
-    // Spy on console.error to verify logging
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    // Spy on logger methods to verify logging
+    loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    loggerWarnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    consoleErrorSpy.mockRestore();
+    loggerErrorSpy.mockRestore();
+    loggerWarnSpy.mockRestore();
   });
 
   describe('Validation Errors (400)', () => {
@@ -252,16 +256,14 @@ describe('Error Handler Middleware', () => {
 
       await request(app).get('/test');
 
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[ERROR]'),
+      expect(loggerErrorSpy).toHaveBeenCalled();
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Server error occurred'),
         expect.any(Object)
       );
     });
 
     test('should log validation errors with warn level', async () => {
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
       app.get('/test', (req, res, next) => {
         next(new ValidationError('Invalid input'));
       });
@@ -269,9 +271,7 @@ describe('Error Handler Middleware', () => {
 
       await request(app).get('/test');
 
-      expect(consoleWarnSpy).toHaveBeenCalled();
-
-      consoleWarnSpy.mockRestore();
+      expect(loggerWarnSpy).toHaveBeenCalled();
     });
 
     test('should include request info in logs', async () => {
@@ -282,7 +282,7 @@ describe('Error Handler Middleware', () => {
 
       await request(app).get('/test');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
           method: 'GET',

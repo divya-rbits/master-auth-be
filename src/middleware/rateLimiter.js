@@ -62,7 +62,22 @@ const validateLimiter = rateLimit({
   skipSuccessfulRequests: false
 });
 
+/**
+ * Rate limiter for admin endpoints
+ * Limits: 100 requests per minute per IP address
+ */
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // Limit each IP to 100 requests per windowMs
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  handler: createRateLimitHandler('admin', 100),
+  skipFailedRequests: false,
+  skipSuccessfulRequests: false
+});
+
 module.exports = {
   loginLimiter,
-  validateLimiter
+  validateLimiter,
+  adminLimiter
 };

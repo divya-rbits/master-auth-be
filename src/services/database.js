@@ -186,31 +186,81 @@ class DatabaseService {
   }
 
   /**
+   * Helper method to create a standardized audit log entry
+   * @param {Object} params - Log entry parameters
+   * @param {string} params.eventType - Type of event
+   * @param {string} params.applicationId - Application identifier
+   * @param {string} params.ipAddress - Client IP address
+   * @param {string} params.userAgent - Client user agent
+   * @param {Object} params.details - Event-specific details
+   * @returns {Object} Standardized log entry object
+   * @private
+   */
+  _createLogEntry({ eventType, applicationId, ipAddress, userAgent, details = {} }) {
+    return {
+      event_type: eventType,
+      application_id: applicationId,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+      details: details || {},
+      created_at: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Validates audit log parameters
+   * @param {string} eventType - Event type to validate
+   * @returns {boolean} True if valid
+   * @throws {Error} If validation fails
+   * @private
+   */
+  _validateLogParams(eventType) {
+    if (!eventType || typeof eventType !== 'string') {
+      throw new Error('Invalid event type provided');
+    }
+    return true;
+  }
+
+  /**
    * Logs an authentication event to audit_logs
+   *
+   * Event Types:
+   * - login_success: Successful authentication
+   * - login_failed: Failed authentication attempt
+   * - token_validation_success: Token validated successfully
+   * - token_validation_failed: Token validation failed
+   * - logout: User logged out
+   * - token_refresh: Token refreshed
+   * - token_revoked: Token manually revoked
+   * - token_status_check: Token status checked
+   * - token_status_check_failed: Token status check failed
+   * - rate_limit_exceeded: Rate limit exceeded
+   *
    * @param {string} eventType - Type of event (login_success, login_failed, etc.)
    * @param {string} applicationId - ID of the application
    * @param {string} ipAddress - IP address of the request
    * @param {string} userAgent - User agent string
    * @param {Object} details - Additional structured data
    * @returns {Promise<boolean>} Success status
-   * @throws {Error} If database operation fails
    */
   async logEvent(eventType, applicationId, ipAddress, userAgent, details = {}) {
     try {
-      if (!eventType || typeof eventType !== 'string') {
-        throw new Error('Invalid event type provided');
-      }
+      // Validate parameters
+      this._validateLogParams(eventType);
 
+      // Create standardized log entry
+      const logEntry = this._createLogEntry({
+        eventType,
+        applicationId,
+        ipAddress,
+        userAgent,
+        details
+      });
+
+      // Insert into database
       const { error } = await supabase
         .from('audit_logs')
-        .insert({
-          event_type: eventType,
-          application_id: applicationId,
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          details,
-          created_at: new Date().toISOString()
-        });
+        .insert(logEntry);
 
       if (error) {
         throw error;
@@ -221,6 +271,79 @@ class DatabaseService {
       console.error('Error logging event:', error);
       // Don't throw for logging errors - just log and return false
       return false;
+    }
+  }
+
+  /**
+   * Queries audit logs with optional filters and pagination
+   * @param {Object} params - Query parameters
+   * @param {string} [params.eventType] - Filter by event type
+   * @param {string} [params.applicationId] - Filter by application ID
+   * @param {string} [params.startDate] - Filter by start date (ISO 8601)
+   * @param {string} [params.endDate] - Filter by end date (ISO 8601)
+   * @param {number} [params.limit=50] - Maximum results per page (max 100)
+   * @param {number} [params.offset=0] - Number of results to skip
+   * @returns {Promise<Object>} Query results with logs array and pagination info
+   * @throws {Error} If database query fails
+   */
+  async queryAuditLogs({
+    eventType = null,
+    applicationId = null,
+    startDate = null,
+    endDate = null,
+    limit = 50,
+    offset = 0
+  } = {}) {
+    try {
+      // Enforce maximum limit
+      const safeLimit = Math.min(Math.max(1, limit), 100);
+      const safeOffset = Math.max(0, offset);
+
+      // Start building query
+      let query = supabase
+        .from('audit_logs')
+        .select('*', { count: 'exact' });
+
+      // Apply filters
+      if (eventType) {
+        query = query.eq('event_type', eventType);
+      }
+
+      if (applicationId) {
+        query = query.eq('application_id', applicationId);
+      }
+
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+      }
+
+      if (endDate) {
+        query = query.lte('created_at', endDate);
+      }
+
+      // Apply sorting (newest first)
+      query = query.order('created_at', { ascending: false });
+
+      // Apply pagination
+      const rangeEnd = safeOffset + safeLimit - 1;
+      query = query.range(safeOffset, rangeEnd);
+
+      // Execute query
+      const { data, error, count } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        logs: data || [],
+        total: count || 0,
+        limit: safeLimit,
+        offset: safeOffset
+      };
+    } catch (error) {
+      console.error('Error querying audit logs:', error);
+      throw new Error('Failed to query audit logs');
     }
   }
 }

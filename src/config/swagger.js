@@ -28,6 +28,13 @@ const options = {
       }
     ],
     components: {
+      securitySchemes: {
+        BasicAuth: {
+          type: 'http',
+          scheme: 'basic',
+          description: 'Admin authentication using HTTP Basic Auth'
+        }
+      },
       schemas: {
         Error: {
           type: 'object',

@@ -2,6 +2,7 @@ const jwtService = require('./jwt');
 const jweService = require('./jwe');
 const kdfService = require('./kdf');
 const supabase = require('../config/supabase');
+const logger = require('../config/logger');
 require('dotenv').config();
 
 /**
@@ -67,7 +68,7 @@ class TokenService {
         salt: encodedSalt
       };
     } catch (error) {
-      console.error('Error generating token:', error.message);
+      logger.error('Error generating token', { error: error.message });
       throw error;
     }
   }
@@ -124,7 +125,7 @@ class TokenService {
       // Return the validated payload
       return payload;
     } catch (error) {
-      console.error('Error validating token:', error.message);
+      logger.error('Error validating token', { error: error.message });
       throw error;
     }
   }
@@ -163,7 +164,7 @@ class TokenService {
       }
       // For database connection errors, we might want to fail open or closed
       // For security, we fail closed (reject the token)
-      console.error('Revocation check failed:', error.message);
+      logger.error('Revocation check failed', { error: error.message });
       throw new Error(`Revocation check failed: ${error.message}`);
     }
   }
