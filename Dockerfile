@@ -24,11 +24,11 @@ RUN mkdir -p logs && chown -R node:node logs
 USER node
 
 # Expose port
-EXPOSE 3001
+EXPOSE 11557
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"
+  CMD node -e "require('http').get('http://localhost:11557/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"
 
 # Start the application
 CMD ["node", "src/index.js"]

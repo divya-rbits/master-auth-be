@@ -1,6 +1,13 @@
 const request = require('supertest');
 const express = require('express');
-const { loginLimiter, validateLimiter } = require('../../src/middleware/rateLimiter');
+const {
+  loginLimiter,
+  validateLimiter,
+  adminLimiter,
+  passwordChangeLimiter,
+  exportLimiter,
+  tokenRevocationLimiter
+} = require('../../src/middleware/rateLimiter');
 const databaseService = require('../../src/services/database');
 
 // Mock the database service
@@ -204,6 +211,210 @@ describe('Rate Limiter Middleware', () => {
         .send({ test: 'data' });
 
       expect(response.status).toBe(429);
+    });
+  });
+
+  describe('Admin Rate Limiter', () => {
+    beforeEach(() => {
+      app = express();
+      app.use(express.json());
+      app.get('/test-admin', adminLimiter, (req, res) => {
+        res.status(200).json({ success: true });
+      });
+    });
+
+    test('should allow 100 requests per minute', async () => {
+      const requests = [];
+      for (let i = 0; i < 100; i++) {
+        requests.push(request(app).get('/test-admin'));
+      }
+
+      const responses = await Promise.all(requests);
+      responses.forEach(response => {
+        expect(response.status).toBe(200);
+      });
+    });
+
+    test('should block 101st request and return 429', async () => {
+      const requests = [];
+      for (let i = 0; i < 100; i++) {
+        requests.push(request(app).get('/test-admin'));
+      }
+      await Promise.all(requests);
+
+      const response = await request(app).get('/test-admin');
+      expect(response.status).toBe(429);
+      expect(response.body.error).toBe('Too many admin requests, please try again later');
+    });
+
+    test('should log rate limit violation', async () => {
+      const requests = [];
+      for (let i = 0; i < 100; i++) {
+        requests.push(request(app).get('/test-admin'));
+      }
+      await Promise.all(requests);
+
+      await request(app).get('/test-admin');
+
+      expect(databaseService.logEvent).toHaveBeenCalledWith(
+        'rate_limit_exceeded',
+        'unknown',
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({
+          endpoint: '/test-admin',
+          limit: 100
+        })
+      );
+    });
+  });
+
+  describe('Password Change Rate Limiter', () => {
+    beforeEach(() => {
+      app = express();
+      app.use(express.json());
+      app.put('/test-password/:id', passwordChangeLimiter, (req, res) => {
+        res.status(200).json({ success: true });
+      });
+    });
+
+    test('should allow 5 password changes per hour per application', async () => {
+      const appId = 'test-app-123';
+
+      for (let i = 0; i < 5; i++) {
+        const response = await request(app).put(`/test-password/${appId}`);
+        expect(response.status).toBe(200);
+      }
+    });
+
+    test('should block 6th password change attempt and return 429', async () => {
+      const appId = 'test-app-123';
+
+      for (let i = 0; i < 5; i++) {
+        await request(app).put(`/test-password/${appId}`);
+      }
+
+      const response = await request(app).put(`/test-password/${appId}`);
+      expect(response.status).toBe(429);
+      expect(response.body.error).toBe('Too many password change requests, please try again later');
+    });
+
+    test('should rate limit per application ID, not per IP', async () => {
+      const appId1 = 'test-app-123';
+      const appId2 = 'test-app-456';
+
+      // Exhaust limit for first app
+      for (let i = 0; i < 5; i++) {
+        await request(app).put(`/test-password/${appId1}`);
+      }
+
+      // Next request for first app should fail
+      const response1 = await request(app).put(`/test-password/${appId1}`);
+      expect(response1.status).toBe(429);
+
+      // But request for second app should succeed (different key)
+      const response2 = await request(app).put(`/test-password/${appId2}`);
+      expect(response2.status).toBe(200);
+    });
+  });
+
+  describe('Export Rate Limiter', () => {
+    beforeEach(() => {
+      app = express();
+      app.use(express.json());
+      app.get('/test-export', exportLimiter, (req, res) => {
+        res.status(200).json({ success: true });
+      });
+    });
+
+    test('should allow 10 export requests per hour', async () => {
+      for (let i = 0; i < 10; i++) {
+        const response = await request(app).get('/test-export');
+        expect(response.status).toBe(200);
+      }
+    });
+
+    test('should block 11th export request and return 429', async () => {
+      for (let i = 0; i < 10; i++) {
+        await request(app).get('/test-export');
+      }
+
+      const response = await request(app).get('/test-export');
+      expect(response.status).toBe(429);
+      expect(response.body.error).toBe('Too many log export requests, please try again later');
+    });
+
+    test('should log rate limit violation', async () => {
+      for (let i = 0; i < 10; i++) {
+        await request(app).get('/test-export');
+      }
+
+      await request(app).get('/test-export');
+
+      expect(databaseService.logEvent).toHaveBeenCalledWith(
+        'rate_limit_exceeded',
+        'unknown',
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({
+          endpoint: '/test-export',
+          limit: 10
+        })
+      );
+    });
+  });
+
+  describe('Token Revocation Rate Limiter', () => {
+    beforeEach(() => {
+      app = express();
+      app.use(express.json());
+      app.post('/test-revoke', tokenRevocationLimiter, (req, res) => {
+        res.status(200).json({ success: true });
+      });
+    });
+
+    test('should allow 50 revocation requests per hour', async () => {
+      for (let i = 0; i < 50; i++) {
+        const response = await request(app).post('/test-revoke');
+        expect(response.status).toBe(200);
+      }
+    });
+
+    test('should block 51st revocation request and return 429', async () => {
+      for (let i = 0; i < 50; i++) {
+        await request(app).post('/test-revoke');
+      }
+
+      const response = await request(app).post('/test-revoke');
+      expect(response.status).toBe(429);
+      expect(response.body.error).toBe('Too many token revocation requests, please try again later');
+    });
+
+    test('should log rate limit violation', async () => {
+      for (let i = 0; i < 50; i++) {
+        await request(app).post('/test-revoke');
+      }
+
+      await request(app).post('/test-revoke');
+
+      expect(databaseService.logEvent).toHaveBeenCalledWith(
+        'rate_limit_exceeded',
+        'unknown',
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({
+          endpoint: '/test-revoke',
+          limit: 50
+        })
+      );
+    });
+
+    test('should include rate limit headers in response', async () => {
+      const response = await request(app).post('/test-revoke');
+
+      expect(response.headers['ratelimit-limit']).toBeDefined();
+      expect(response.headers['ratelimit-remaining']).toBeDefined();
+      expect(response.headers['ratelimit-reset']).toBeDefined();
     });
   });
 });

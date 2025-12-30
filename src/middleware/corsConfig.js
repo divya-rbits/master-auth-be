@@ -40,7 +40,7 @@ const corsOptions = {
   },
 
   // Allowed HTTP methods
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
 
   // Allowed headers
   allowedHeaders: ['Content-Type', 'Authorization'],

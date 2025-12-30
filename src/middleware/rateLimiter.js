@@ -32,10 +32,10 @@ const createRateLimitHandler = (endpointName, limit) => {
 
 /**
  * Rate limiter for login endpoint
- * Limits: 5 attempts per minute per IP address
+ * Limits: 5 attempts per 15 minutes per IP address
  */
 const loginLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Limit each IP to 5 requests per windowMs
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
@@ -76,8 +76,58 @@ const adminLimiter = rateLimit({
   skipSuccessfulRequests: false
 });
 
+/**
+ * Rate limiter for password change endpoint
+ * Limits: 5 attempts per hour per application
+ * Uses application ID as the key instead of IP address
+ */
+const passwordChangeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Limit each application to 5 password change attempts per hour
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Use application ID from params as the key, with proper IPv6 handling
+  keyGenerator: (req, ipKeyGenerator) => {
+    return req.params.id || ipKeyGenerator(req);
+  },
+  handler: createRateLimitHandler('password change', 5),
+  skipFailedRequests: false,
+  skipSuccessfulRequests: false
+});
+
+/**
+ * Rate limiter for log export endpoint
+ * Limits: 10 exports per hour per IP address
+ */
+const exportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 export requests per hour
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  handler: createRateLimitHandler('log export', 10),
+  skipFailedRequests: false,
+  skipSuccessfulRequests: false
+});
+
+/**
+ * Rate limiter for token revocation endpoints
+ * Limits: 50 revocation requests per hour per IP address
+ */
+const tokenRevocationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 50, // Limit each IP to 50 revocation requests per hour
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  handler: createRateLimitHandler('token revocation', 50),
+  skipFailedRequests: false,
+  skipSuccessfulRequests: false
+});
+
 module.exports = {
   loginLimiter,
   validateLimiter,
-  adminLimiter
+  adminLimiter,
+  passwordChangeLimiter,
+  exportLimiter,
+  tokenRevocationLimiter
 };

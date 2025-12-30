@@ -14,7 +14,7 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3001',
+        url: 'http://localhost:11557',
         description: 'Development server'
       },
       {
@@ -22,35 +22,65 @@ const options = {
         description: 'Custom port server',
         variables: {
           port: {
-            default: '3001'
+            default: '11557'
           }
         }
       }
     ],
     components: {
       securitySchemes: {
-        BasicAuth: {
+        BearerAuth: {
           type: 'http',
-          scheme: 'basic',
-          description: 'Admin authentication using HTTP Basic Auth'
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Admin JWT token authentication. Login via /api/admin/auth/login to get token.'
         }
       },
       schemas: {
         Error: {
           type: 'object',
           properties: {
+            success: {
+              type: 'boolean',
+              example: false
+            },
             error: {
-              type: 'object',
-              properties: {
-                message: {
+              oneOf: [
+                {
                   type: 'string',
-                  description: 'Error message'
+                  description: 'Simple error message'
                 },
-                status: {
-                  type: 'integer',
-                  description: 'HTTP status code'
+                {
+                  type: 'object',
+                  properties: {
+                    message: {
+                      type: 'string',
+                      description: 'Error message'
+                    },
+                    statusCode: {
+                      type: 'integer',
+                      description: 'HTTP status code'
+                    }
+                  }
                 }
-              }
+              ]
+            }
+          }
+        },
+        SuccessResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+              example: true
+            },
+            message: {
+              type: 'string',
+              description: 'Success message'
+            },
+            data: {
+              type: 'object',
+              description: 'Response data'
             }
           }
         }

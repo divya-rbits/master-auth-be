@@ -11,7 +11,7 @@ class AdminAuthController {
    * /api/admin/auth/login:
    *   post:
    *     summary: Admin login
-   *     description: Authenticate admin user and receive JWT token
+   *     description: Authenticate admin user and receive JWT token. Rate limited to 5 attempts per 15 minutes per IP address.
    *     tags:
    *       - Admin Authentication
    *     requestBody:
@@ -80,6 +80,19 @@ class AdminAuthController {
    *                 error:
    *                   type: string
    *                   example: "Invalid credentials"
+   *       429:
+   *         description: Too many login attempts
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: false
+   *                 error:
+   *                   type: string
+   *                   example: "Too many admin requests, please try again later"
    *       500:
    *         description: Internal server error
    *         content:
@@ -164,7 +177,7 @@ class AdminAuthController {
    * /api/admin/auth/logout:
    *   post:
    *     summary: Admin logout
-   *     description: Logout admin user (logs the event, JWT is stateless so token remains valid until expiration)
+   *     description: Logout admin user (logs the event, JWT is stateless so token remains valid until expiration). Rate limited to 100 requests per minute per IP address.
    *     tags:
    *       - Admin Authentication
    *     security:
@@ -199,6 +212,22 @@ class AdminAuthController {
    *                     message:
    *                       type: string
    *                       example: "Authentication required"
+   *                     statusCode:
+   *                       type: integer
+   *                       example: 401
+   *       429:
+   *         description: Too many logout requests
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: false
+   *                 error:
+   *                   type: string
+   *                   example: "Too many admin requests, please try again later"
    *       500:
    *         description: Internal server error
    *         content:

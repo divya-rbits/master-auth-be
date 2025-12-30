@@ -17,7 +17,7 @@ validateEnvironment();
 printEnvironmentSummary();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 11557;
 
 // Middleware
 app.use(requestLogger);

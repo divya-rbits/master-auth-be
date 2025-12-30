@@ -28,7 +28,7 @@ const validationRules = {
     type: 'number',
     min: 1,
     max: 65535,
-    default: 3001,
+    default: 11557,
     description: 'Server port number'
   },
 
@@ -297,7 +297,7 @@ function getEnv(name, defaultValue) {
 function printEnvironmentSummary() {
   logger.info('Environment Configuration:');
   logger.info(`  NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
-  logger.info(`  PORT: ${process.env.PORT || 3001}`);
+  logger.info(`  PORT: ${process.env.PORT || 11557}`);
   logger.info(`  TOKEN_EXPIRATION: ${process.env.TOKEN_EXPIRATION || 3600}s`);
   logger.info(`  SUPABASE_URL: ${process.env.SUPABASE_URL ? '✓ Set' : '✗ Not set'}`);
   logger.info(`  SUPABASE_SERVICE_KEY: ${process.env.SUPABASE_SERVICE_KEY ? '✓ Set (hidden)' : '✗ Not set'}`);
